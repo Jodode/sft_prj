@@ -6,7 +6,6 @@ set(target sft)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -DELPP_NO_DEFAULT_LOG_FILE" )
 set(CMAKE_CXX_STANDARD 14)
 set(SOURCE_DIR ${CMAKE_SOURCE_DIR})
-set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/modules;${CMAKE_MODULE_PATH}")
 
 
 include(FetchContent)
