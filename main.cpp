@@ -1,3 +1,11 @@
+/**
+ \file
+ \brief Компилируемый файл со всем функционалом
+
+ В этом файле описано всё взаимодействие между пользователем - программой и программой - системой
+
+ */
+
 #include <iostream>
 #include <fmt/format.h>
 
@@ -8,9 +16,13 @@
 #include "PcapFileDevice.h"
 #include "StatsCollector.h"
 
+//! Режим работы программы false - тихий, true - подробный
 bool verboseMode = false;
+//! Минимальный процент содержания порта в трафике для отображения в статистике
 double minimalPercPort = 5.0;
+//! Минимальный процент содержания IP адреса в трафике для отображения в статистике
 double minimalPercIP = 5.0;
+//! Формат файла с результатом
 std::string fileFormat = "txt";
 
 static const char VERSION[] = "SFT v1.0";
@@ -39,12 +51,25 @@ R"(Signatures for traffic.
         --config CONFIG         Config file.
 )";
 
-
+/**
+ * \brief Функция проверки существования файла
+ * \author Jodode
+ * @param name путь до файла/имя
+ */
 inline bool fileExists (const std::string& name) {
     std::ifstream f(name.c_str());
     return f.good();
 }
 
+/**
+ * \brief Метод для сборки пакетов в хранилище статистики
+ * \author Jodode
+ * \version 0.1
+ * @param readerDevice читающий агрегат
+ * @param stats Хранилище статистики
+ *
+ * Метод итерируется по всем пакетам трафика и отправляет их на дальнейшую обработку в хранилище
+ */
 void collectPcap(pcpp::IFileReaderDevice* readerDevice, StatsCollector& stats) {
     pcpp::RawPacket rawPacket;
     while(readerDevice->getNextPacket(rawPacket)) {
@@ -56,6 +81,19 @@ void collectPcap(pcpp::IFileReaderDevice* readerDevice, StatsCollector& stats) {
 
 }
 
+
+/**
+ * \brief Метод для записи статистики "полезной нагрузки"
+ * \author Jodode
+ * \version 0.1
+ * @param max Максимальный размер "полезной нагрузки" в пакетах протокола X (UDP/TCP)
+ * @param packets Вектор с размерами "полезной нагрузки" пакетов протокола X (UDP/TCP)
+ * @param protocol Протокол X (UDP/TCP)
+ * @param output Поток для записи результатов
+ *
+ * Внутри метода высчитывается распределение пакетов по байт-интервалам, а затем результат записывается в указанный пользователем
+ * поток, существует автоматическое определение формата вывода (csv,txt)
+ */
 void writePayloadLen(size_t& max, std::vector<size_t>& packets, const std::string& protocol, std::ostream& output) {
     auto depth = static_cast<size_t>(std::log2(static_cast<double>(max)));
     std::vector<size_t> intervals(depth, 0);
@@ -104,6 +142,17 @@ void writePayloadLen(size_t& max, std::vector<size_t>& packets, const std::strin
     }
 }
 
+/**
+ * \brief Метод для записи статистики high-load портов
+ * \author Jodode
+ * \version 0.1
+ * @param dstMap Словарь {port : countOfAddress}
+ * @param output Поток для записи результатов
+ *
+ * Внутри метода высчитывается распределение портов в процентах, а затем результат записывается в указанный пользователем
+ * поток, существует автоматическое определение формата вывода (csv,txt). Выводимые данные можно фильтровать с помощью
+ * конфиг файла
+ */
 void writeDstPorts(std::map<uint32_t, uint32_t>& dstMap, std::ostream& output) {
 
     output << fmt::format((fileFormat == "csv" ? "{}\n{},{},{}\n" : "|{:=^48}|\n|{:^16}{:^16}{:^16}|\n"),
@@ -122,6 +171,17 @@ void writeDstPorts(std::map<uint32_t, uint32_t>& dstMap, std::ostream& output) {
     }
 }
 
+/**
+ * \brief Метод для записи статистики high-load IP адресов
+ * \author Jodode
+ * \version 0.1
+ * @param dstMap Словарь {IP : countOfAddress}
+ * @param output Поток для записи результатов
+ *
+ * Внутри метода высчитывается распределение IP в процентах, а затем результат записывается в указанный пользователем
+ * поток, существует автоматическое определение формата вывода (csv,txt). Выводимые данные можно фильтровать с помощью
+ * конфиг файла
+ */
 void writeDstIPv4(std::map<uint32_t, uint32_t>& dstMap, std::ostream& output) {
     output << fmt::format((fileFormat == "csv" ? "{}\n{},{},{}\n" : "|{:=^48}|\n|{:^16}{:^16}{:^16}|\n"),
                           "Dest IPv4 stats", "IPv4", "count", "perc");
@@ -137,6 +197,16 @@ void writeDstIPv4(std::map<uint32_t, uint32_t>& dstMap, std::ostream& output) {
     }
 }
 
+/**
+ * \brief Метод для записи статистики
+ * \author Jodode
+ * \version 0.1
+ * @param stats Хранилище статистики
+ * @param output Поток для записи результатов
+ *
+ * Внутри метода вызывается вызов других метод для записи всей доступной статистики, а также дополнительно распределение
+ * запросов между протоколами UDP и TCP.
+ */
 void writeResults(StatsCollector& stats, std::ostream& output) {
     if (stats.udpStats.numOfPackets > 0)
         writePayloadLen(stats.udpStats.udpMax, stats.udpStats.sizeOfPackets,  "UDP", output);
@@ -159,6 +229,16 @@ void writeResults(StatsCollector& stats, std::ostream& output) {
 
 }
 
+
+/**
+ * \brief Метод для записи статистики high-load IP адресов
+ * \author Jodode
+ * \version 0.1
+ * @param argc количество опций из командной строки
+ * @param argv опции командной строки
+ *
+ * Сбор и обработка опций из командной строк, запуск всех процессов(чтение, сбор, обработка, запись)
+ */
 int main(int argc, char* argv[]) {
     std::map<std::string, docopt::value> args
             = docopt::docopt(USAGE,
@@ -232,7 +312,6 @@ int main(int argc, char* argv[]) {
             writeResults(statsCollector, std::cout);
         }
     }
-
 
     return 0;
 }
