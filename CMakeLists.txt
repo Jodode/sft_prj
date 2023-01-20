@@ -7,8 +7,6 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -DELPP_NO_DEFAULT_LOG_FILE" )
 set(CMAKE_CXX_STANDARD 14)
 set(SOURCE_DIR ${CMAKE_SOURCE_DIR})
 
-
-
 include(FetchContent)
 
 FetchContent_Declare(
@@ -39,10 +37,11 @@ if (DOXYGEN_FOUND)
     set(DOXYGEN_IN ${CMAKE_SOURCE_DIR}/docs/Doxyfile.in)
     set(DOXYGEN_OUT ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)
 
+    configure_file(${DOXYGEN_IN} ${DOXYGEN_OUT})
     message("Doxygen build started")
 
     add_custom_target( doc ALL
-            COMMAND doxygen -g ${CMAKE_SOURCE_DIR}/docs/Doxyfile.in
+            COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_OUT}
             WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
             COMMENT "Generating API documentation with Doxygen"
             VERBATIM )

@@ -4,7 +4,7 @@
 
  В этом файле описано всё взаимодействие между пользователем - программой и программой - системой
 
- */
+*/
 
 #include <iostream>
 #include <fmt/format.h>
@@ -230,15 +230,6 @@ void writeResults(StatsCollector& stats, std::ostream& output) {
 }
 
 
-/**
- * \brief Метод для записи статистики high-load IP адресов
- * \author Jodode
- * \version 0.1
- * @param argc количество опций из командной строки
- * @param argv опции командной строки
- *
- * Сбор и обработка опций из командной строк, запуск всех процессов(чтение, сбор, обработка, запись)
- */
 int main(int argc, char* argv[]) {
     std::map<std::string, docopt::value> args
             = docopt::docopt(USAGE,
