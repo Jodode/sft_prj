@@ -9,14 +9,14 @@
 
 ## Загрузка 
 Все исходники последней версии распололожены на github 
-
-
 ```
 git clone https://github.com/Jodode/sft_prj.git
 ```
 
 ## Сборка
 Сборка осущевстляется с помощью CMake, версия 3.0+
+Необходимо скачать [NPcapSDK](https://npcap.com/#download)
+
 ```
 cmake -DPCAP_ROOT=<npcapSDK_dir> -B <build_dir> sft_prj
 cmake --build <build_dir>
