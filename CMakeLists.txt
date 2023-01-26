@@ -60,5 +60,6 @@ target_link_libraries(${PROJECT_NAME}
         )
 
 install(TARGETS ${PROJECT_NAME} DESTINATION bin)
+install(DIRECTORY ${PROJECT_SOURCE_DIR}/examples DESTINATION examples)
 install (FILES ${PROJECT_SOURCE_DIR}/StatsCollector.h
         DESTINATION include)
