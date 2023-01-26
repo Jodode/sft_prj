@@ -62,6 +62,21 @@ inline bool fileExists (const std::string& name) {
 }
 
 /**
+ * \brief Функция для получения процентной статистики
+ * @param totalValues количество определенных элементов в выборке
+ * @param allValues количество всех элементов в выборке
+ * @return Процент от общего количества
+ */
+double getPerc(const size_t& totalValues, const size_t& allValues) {
+    return (static_cast<double>(totalValues) / static_cast<double>(allValues)) * 100.0;
+}
+
+double getPerc(const uint32_t & totalValues, const size_t& allValues) {
+    return getPerc(static_cast<size_t>(totalValues), allValues);
+}
+
+
+/**
  * \brief Метод для сборки пакетов в хранилище статистики
  * \author Jodode
  * \version 0.1
@@ -119,14 +134,16 @@ void writePayloadLen(size_t& max, std::vector<size_t>& packets, const std::strin
         }
     }
 
+    size_t totalPackets = packets.size();
+
     output << fmt::format((fileFormat == "csv" ? "{}\n{},{},{}\n" : "|{:=^48}|\n|{:^16}{:^16}{:^16}|\n"),
                           protocol + " payload length", "interval", "count", "perc");
     output << fmt::format((fileFormat == "csv" ? "{},{},{:.3}\n" : "|{:<16}{:<16}{:<16.3}|\n"), 0, intervals[0],
-                          100.0 * static_cast<float>(intervals[0]) / static_cast<float>(packets.size()));
+                          getPerc(intervals[0], totalPackets));
     for (size_t lower_bound = 1, upper_bound = 20, i = 1; i < depth; lower_bound = upper_bound, upper_bound *= 2, ++i) {
 
-        double perc = 100.0 * static_cast<double>(intervals[i]) / static_cast<double>(packets.size());
-        double percMax = 100.0 * static_cast<double>(countOfMaxes) / static_cast<double>(packets.size());
+        double perc = getPerc(intervals[i], totalPackets);
+        double percMax = getPerc(countOfMaxes, totalPackets);
         if (upper_bound > max) {
             upper_bound = max + 1;
 
@@ -164,7 +181,7 @@ void writeDstPorts(std::map<uint32_t, uint32_t>& dstMap, std::ostream& output) {
 
 
     for (auto& pair : dstMap) {
-        double perc = 100.0 * static_cast<double>(pair.second) / static_cast<double>(totalPortRequests);
+        double perc = getPerc(pair.second, totalPortRequests);
         if (perc > minimalPercPort)
             output << fmt::format((fileFormat == "csv" ? "{},{},{:.3}\n" : "|{:<16}{:<16}{:<16.3}|\n"),
                                   pair.first, pair.second, perc);
@@ -190,7 +207,7 @@ void writeDstIPv4(std::map<uint32_t, uint32_t>& dstMap, std::ostream& output) {
         totalIPv4 += pair.second;
 
     for (auto& pair : dstMap) {
-        double perc = 100.0 * static_cast<double>(pair.second) / static_cast<double>(totalIPv4);
+        double perc = getPerc(pair.second, totalIPv4);
         if (perc > minimalPercIP)
             output << fmt::format((fileFormat == "csv" ? "{},{},{:.3}\n" : "|{:<16}{:<16}{:<16.3}|\n"),
                                   pcpp::IPv4Address(pair.first).toString(), pair.second, perc);
@@ -208,6 +225,10 @@ void writeDstIPv4(std::map<uint32_t, uint32_t>& dstMap, std::ostream& output) {
  * запросов между протоколами UDP и TCP.
  */
 void writeResults(StatsCollector& stats, std::ostream& output) {
+    output << fmt::format((fileFormat == "csv" ? "{}\n{},{},{}\n" : "|{:=^48}|\n|{:^16}{:^16}{:^16}|\n"),
+                          "General packets info", "total", "collected", "dropped");
+    output << fmt::format((fileFormat == "csv" ? "{},{},{}\n" : "|{:^16}{:^16}{:^16}|\n"),
+                          stats.totalPackets, stats.totalPackets - stats.droppedPackets, stats.droppedPackets);
     if (stats.udpStats.numOfPackets > 0)
         writePayloadLen(stats.udpStats.udpMax, stats.udpStats.sizeOfPackets,  "UDP", output);
     if (stats.tcpStats.numOfPackets > 0)
@@ -220,12 +241,10 @@ void writeResults(StatsCollector& stats, std::ostream& output) {
                           "Protocols distribution", "protocol", "count", "perc");
     output << fmt::format((fileFormat == "csv" ? "{},{},{:.3}\n" : "|{:^16}{:<16}{:<16.3}|\n"), "UDP",
                           stats.udpStats.numOfPackets,
-                            100.0 * static_cast<double>(stats.udpStats.numOfPackets) /
-                                static_cast<double>(stats.udpStats.numOfPackets + stats.tcpStats.numOfPackets));
+                          getPerc(stats.udpStats.numOfPackets, stats.udpStats.numOfPackets + stats.tcpStats.numOfPackets));
     output << fmt::format((fileFormat == "csv" ? "{},{},{:.3}\n" : "|{:^16}{:<16}{:<16.3}|\n"), "TCP",
                           stats.tcpStats.numOfPackets,
-                            100.0 * static_cast<double>(stats.tcpStats.numOfPackets) /
-                                static_cast<double>(stats.udpStats.numOfPackets + stats.tcpStats.numOfPackets));
+                          getPerc(stats.tcpStats.numOfPackets, stats.udpStats.numOfPackets + stats.tcpStats.numOfPackets));
 
 }
 

@@ -160,7 +160,6 @@ struct StatsCollector {
         dstPorts = std::map<uint32_t, uint32_t>();
     }
 
-    //! Функция очищения
     /**
      * \brief Функция "сбора" пакета в хранилище
      * \author Jodode
@@ -177,8 +176,7 @@ struct StatsCollector {
             auto* tcp = packet.getLayerOfType<pcpp::TcpLayer>();
             tcpStats.update(tcp);
             port = tcp->getDstPort();
-        }
-        if (packet.isPacketOfType(pcpp::UDP)) {
+        } else if (packet.isPacketOfType(pcpp::UDP)) {
             auto* udp = packet.getLayerOfType<pcpp::UdpLayer>();
             udpStats.update(udp);
             port = udp->getDstPort();

@@ -1,11 +1,10 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.10)
 
 project(SFT VERSION 1.0 LANGUAGES CXX)
 
-set(target sft)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -DELPP_NO_DEFAULT_LOG_FILE" )
 set(CMAKE_CXX_STANDARD 14)
-set(SOURCE_DIR ${CMAKE_SOURCE_DIR})
+set(CMAKE_CROSSCOMPILING BOOL TRUE)
+option(BUILD_DOC "Build Documentation" ON)
 
 include(FetchContent)
 
@@ -25,12 +24,10 @@ FetchContent_Declare(
         GIT_TAG master
 )
 
-
 FetchContent_MakeAvailable(pcpp docopt fmt)
 
-add_executable(${target} main.cpp)
+add_executable(${PROJECT_NAME} main.cpp)
 
-option(BUILD_DOC "Build Documentation" ON)
 find_package(Doxygen)
 
 if (DOXYGEN_FOUND)
@@ -40,17 +37,19 @@ if (DOXYGEN_FOUND)
     configure_file(${DOXYGEN_IN} ${DOXYGEN_OUT})
     message("Doxygen build started")
 
-    add_custom_target( doc ALL
+    add_custom_target(
+            doc ALL
             COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_OUT}
             WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-            COMMENT "Generating API documentation with Doxygen"
-            VERBATIM )
+            COMMENT "Generating documentation with Doxygen"
+            VERBATIM
+            )
 else (DOXYGEN_FOUND)
     message("Doxygen need to be installed to generate the doxygen documentation")
 endif (DOXYGEN_FOUND)
 
 
-target_link_libraries(${target}
+target_link_libraries(${PROJECT_NAME}
         -lpthread
         Pcap++
         Packet++
@@ -59,3 +58,7 @@ target_link_libraries(${target}
         docopt
         fmt::fmt
         )
+
+install(TARGETS ${PROJECT_NAME} DESTINATION bin)
+install (FILES ${PROJECT_SOURCE_DIR}/StatsCollector.h
+        DESTINATION include)

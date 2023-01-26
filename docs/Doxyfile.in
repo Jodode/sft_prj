@@ -1,7 +1,7 @@
-# Doxyfile 1.8.3
+# Doxyfile 1.9.6
 
 OUTPUT_DIRECTORY       = @CMAKE_CURRENT_BINARY_DIR@/doxygen/
-INPUT                  = @CMAKE_CURRENT_SOURCE_DIR@/ @CMAKE_CURRENT_SOURCE_DIR@/../docs
+INPUT                  = @CMAKE_CURRENT_SOURCE_DIR@/ @CMAKE_CURRENT_SOURCE_DIR@/docs
 
 DOXYFILE_ENCODING      = UTF-8
 
