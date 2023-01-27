@@ -59,7 +59,7 @@ target_link_libraries(${PROJECT_NAME}
         fmt::fmt
         )
 
-install(TARGETS ${PROJECT_NAME} DESTINATION bin)
-install(DIRECTORY ${PROJECT_SOURCE_DIR}/examples DESTINATION examples)
+install(TARGETS ${PROJECT_NAME} DESTINATION sft/bin)
+install(FILES ${PROJECT_SOURCE_DIR}/examples/test.pcapng DESTINATION sft/examples)
 install (FILES ${PROJECT_SOURCE_DIR}/StatsCollector.h
-        DESTINATION include)
+        DESTINATION sft/include)

@@ -41,6 +41,7 @@ R"(Signatures for traffic.
         sft [-v] -f INFILE -o OUTFILE [--config CONFIG]
         sft (-h | --help)
         sft --version
+        sft --test TESTFILE
 
     Options:
         -h --help               Show this screen.
@@ -49,6 +50,7 @@ R"(Signatures for traffic.
         -o OUTFILE              Path to output report file.
         -v                      Verbose mode.
         --config CONFIG         Config file.
+        --test TESTFILE         Testing.
 )";
 
 /**
@@ -61,6 +63,13 @@ inline bool fileExists (const std::string& name) {
     return f.good();
 }
 
+void require(std::string test_name, bool require_exp){
+    if (require_exp) {
+        std::cout << "[v] -- " << test_name << " -- " << "passed" << std::endl;
+    } else {
+        std::cout << "[x] -- " << test_name << " -- " << "failed" << std::endl;
+    }
+}
 /**
  * \brief Функция для получения процентной статистики
  * @param totalValues количество определенных элементов в выборке
@@ -120,10 +129,11 @@ void writePayloadLen(size_t& max, std::vector<size_t>& packets, const std::strin
         else {
             size_t upperBound = 20;
             for (size_t layer = 1; layer < depth + 2; ++layer) {
-                if (len == max) {
-                    ++countOfMaxes;
-                }
+
                 if (len < upperBound) {
+                    if (len == max) {
+                        ++countOfMaxes;
+                    }
                     ++intervals[layer];
                     break;
                 }
@@ -249,6 +259,8 @@ void writeResults(StatsCollector& stats, std::ostream& output) {
 }
 
 
+
+
 int main(int argc, char* argv[]) {
     std::map<std::string, docopt::value> args
             = docopt::docopt(USAGE,
@@ -256,7 +268,36 @@ int main(int argc, char* argv[]) {
                              true,
                              VERSION);
 
+
+    if (args.find("--test")->second) {
+        std::string testfile = args.find("--test")->second.asString();
+
+        StatsCollector stats;
+
+        pcpp::IFileReaderDevice* reader = pcpp::IFileReaderDevice::getReader(testfile);
+        if (!reader->open())
+        {
+            std::cerr << "[-] ERROR: Cannot open test.pcapng for reading" << std::endl;
+            return 1;
+        }
+
+        auto assertExp = [](size_t value, size_t ans) -> bool {return value == ans;};
+
+        collectPcap(reader, stats);
+        require("Total packets",assertExp(stats.totalPackets, 24850));
+        require("Collected packets",assertExp(stats.totalPackets - stats.droppedPackets, 19227));
+        require("Dropped packets",assertExp(stats.droppedPackets, 5623));
+        require("Count UDP packets",assertExp(stats.udpStats.numOfPackets, 1003));
+        require("Count TCP packets",assertExp(stats.tcpStats.numOfPackets, 18224));
+        require("Count destination ports",assertExp(stats.dstPorts[443], 12973));
+        require("Count destination IP",assertExp(stats.dstIPv4[3713352377], 5259));
+        require("Percent calculating", getPerc(size_t(1), size_t(3)) - 33.333333333 > 0.0000000000001);
+    }
+
+    StatsCollector statsCollector;
+
     verboseMode = args.find("-v")->second.asBool();
+
 
     if (args.find("--config")->second) {
         std::string pathConfig = args.find("--config")->second.asString();
@@ -283,7 +324,6 @@ int main(int argc, char* argv[]) {
             std::cout << "[+] Config file read";
     }
 
-    StatsCollector statsCollector;
 
     if (args.find("-f")->second) {
         std::string inPath = args.find("-f")->second.asString();
