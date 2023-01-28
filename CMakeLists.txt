@@ -5,6 +5,7 @@ project(SFT VERSION 1.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CROSSCOMPILING BOOL TRUE)
 option(BUILD_DOC "Build Documentation" ON)
+option(PCAPPP_INSTALL "Install PcapPlusPlus" ON)
 
 include(FetchContent)
 
