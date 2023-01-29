@@ -8,13 +8,19 @@
 
 #include <iostream>
 #include <fmt/format.h>
-
+#include <cstdlib>
 #include "docopt.h"
 #include "SystemUtils.h"
 #include "Packet.h"
 #include "HttpLayer.h"
 #include "PcapFileDevice.h"
 #include "StatsCollector.h"
+#include "EthLayer.h"
+#include "VlanLayer.h"
+#include "IPv4Layer.h"
+#include "TcpLayer.h"
+#include "UdpLayer.h"
+#include "DnsLayer.h"
 
 //! Режим работы программы false - тихий, true - подробный
 bool verboseMode = false;
@@ -41,7 +47,7 @@ R"(Signatures for traffic.
         sft [-v] -f INFILE -o OUTFILE [--config CONFIG]
         sft (-h | --help)
         sft --version
-        sft --test TESTFILE
+        sft --test
 
     Options:
         -h --help               Show this screen.
@@ -50,7 +56,7 @@ R"(Signatures for traffic.
         -o OUTFILE              Path to output report file.
         -v                      Verbose mode.
         --config CONFIG         Config file.
-        --test TESTFILE         Testing.
+        --test         Testing.
 )";
 
 /**
@@ -270,28 +276,112 @@ int main(int argc, char* argv[]) {
 
 
     if (args.find("--test")->second) {
-        std::string testfile = args.find("--test")->second.asString();
+
+        std::srand((unsigned) time(nullptr));
+
+        uint32_t dstPort = (std::rand() % (65535 - 1000)) + 1000;
+        uint32_t dstIP = std::rand();
+        size_t totalPorts = 1;
+        size_t totalIP = 1;
 
         StatsCollector stats;
+        size_t length;
+        std::vector<size_t> udpPackets;
+        size_t udpMax = 0;
+        uint32_t max_UDP = std::rand() % 1000;
+        for (uint32_t i = 0; i < max_UDP; ++i) {
+            if (std::rand() % 13 == 0 && i != 0) {
+                dstPort = (std::rand() % (65535 - 1000)) + 1000;
+                ++totalPorts;
+            }
+            if (std::rand() % 13 == 0 && i != 0) {
+                dstIP = std::rand();
+                ++totalIP;
+            }
+            length = std::rand() % 1000;
+            udpPackets.push_back(length);
+            if (length > udpMax) udpMax = length;
+            pcpp::EthLayer newEthernetLayer(pcpp::MacAddress("00:50:43:11:22:33"), pcpp::MacAddress("aa:bb:cc:dd:ee"));
+            pcpp::IPv4Layer newIPLayer(pcpp::IPv4Address("192.168.1.1"),
+                                       pcpp::IPv4Address(pcpp::IPv4Address(dstIP).toString()));
+            newIPLayer.getIPv4Header()->ipId = pcpp::hostToNet16(2000);
+            newIPLayer.getIPv4Header()->timeToLive = 64;
+            pcpp::UdpLayer newUdpLayer(12345, dstPort);
+            pcpp::DnsLayer newDnsLayer;
+            newDnsLayer.addQuery("www.ebay.com", pcpp::DNS_TYPE_A, pcpp::DNS_CLASS_IN);
+            pcpp::Packet UDPPacket(100);
+            UDPPacket.addLayer(&newEthernetLayer);
+            UDPPacket.addLayer(&newIPLayer);
+            UDPPacket.addLayer(&newUdpLayer);
+            UDPPacket.addLayer(&newDnsLayer);
+            UDPPacket.computeCalculateFields();
+            stats.collectPacket(UDPPacket);
 
-        pcpp::IFileReaderDevice* reader = pcpp::IFileReaderDevice::getReader(testfile);
-        if (!reader->open())
-        {
-            std::cerr << "[-] ERROR: Cannot open test.pcapng for reading" << std::endl;
-            return 1;
+        }
+
+        std::vector<size_t> tcpPackets;
+        size_t tcpMax = 0;
+        uint32_t max_TCP = std::rand() % 1000;
+        for (uint32_t i = 0; i < max_TCP; ++i) {
+            if (std::rand() % 13 == 0 && i != 0) {
+                dstPort = (std::rand() % (65535 - 1000)) + 1000;
+                ++totalPorts;
+            }
+            if (std::rand() % 13 == 0 && i != 0) {
+                dstIP = std::rand();
+                ++totalIP;
+            }
+            length = std::rand() % 1000;
+            tcpPackets.push_back(length);
+            if (length > tcpMax) tcpMax = length;
+            pcpp::EthLayer nEthernetLayer(pcpp::MacAddress("00:50:43:11:22:33"), pcpp::MacAddress("aa:bb:cc:dd:ee"));
+            pcpp::IPv4Layer nIPLayer(pcpp::IPv4Address("192.168.1.1"),
+                                     pcpp::IPv4Address(pcpp::IPv4Address(dstIP).toString()));
+            nIPLayer.getIPv4Header()->ipId = pcpp::hostToNet16(2000);
+            nIPLayer.getIPv4Header()->timeToLive = 64;
+            pcpp::TcpLayer newTcpLayer(12345, dstPort);
+            pcpp::DnsLayer nDnsLayer;
+            nDnsLayer.addQuery("www.ebay.com", pcpp::DNS_TYPE_A, pcpp::DNS_CLASS_IN);
+            pcpp::Packet TCPPacket(100);
+            TCPPacket.addLayer(&nEthernetLayer);
+            TCPPacket.addLayer(&nIPLayer);
+            TCPPacket.addLayer(&newTcpLayer);
+            TCPPacket.addLayer(&nDnsLayer);
+            TCPPacket.computeCalculateFields();
+            stats.collectPacket(TCPPacket);
         }
 
         auto assertExp = [](size_t value, size_t ans) -> bool {return value == ans;};
-
-        collectPcap(reader, stats);
-        require("Total packets",assertExp(stats.totalPackets, 24850));
-        require("Collected packets",assertExp(stats.totalPackets - stats.droppedPackets, 19227));
-        require("Dropped packets",assertExp(stats.droppedPackets, 5623));
-        require("Count UDP packets",assertExp(stats.udpStats.numOfPackets, 1003));
-        require("Count TCP packets",assertExp(stats.tcpStats.numOfPackets, 18224));
-        require("Count destination ports",assertExp(stats.dstPorts[443], 12973));
-        require("Count destination IP",assertExp(stats.dstIPv4[3713352377], 5259));
+        require("Total packets",assertExp(stats.totalPackets, max_TCP + max_UDP));
+        require("Collected packets",assertExp(stats.totalPackets - stats.droppedPackets, max_TCP + max_UDP));
+        require("Dropped packets",assertExp(stats.droppedPackets, 0));
+        require("Count UDP packets",assertExp(stats.udpStats.numOfPackets, max_UDP));
+        require("Count TCP packets",assertExp(stats.tcpStats.numOfPackets, max_TCP));
+        require("Count destination ports",assertExp(stats.dstPorts.size(), totalPorts));
+        require("Count destination IP",assertExp(stats.dstIPv4.size(), totalIP));
         require("Percent calculating", getPerc(size_t(1), size_t(3)) - 33.333333333 > 0.0000000000001);
+
+        std::cout << fmt::format((fileFormat == "csv" ? "{}\n{},{},{}\n" : "|{:=^48}|\n|{:^16}{:^16}{:^16}|\n"),
+                              "General packets info", "total", "collected", "dropped");
+        std::cout << fmt::format((fileFormat == "csv" ? "{},{},{}\n" : "|{:^16}{:^16}{:^16}|\n"),
+                              stats.totalPackets, stats.totalPackets - stats.droppedPackets, stats.droppedPackets);
+        if (stats.udpStats.numOfPackets > 0)
+            writePayloadLen(udpMax, udpPackets,  "UDP", std::cout);
+        if (stats.tcpStats.numOfPackets > 0)
+            writePayloadLen(tcpMax, tcpPackets,  "TCP", std::cout);
+        if (!stats.dstPorts.empty())
+            writeDstPorts(stats.dstPorts, std::cout);
+        if (!stats.dstIPv4.empty())
+            writeDstIPv4(stats.dstIPv4, std::cout);
+        std::cout << fmt::format((fileFormat == "csv" ? "{}\n{},{},{}\n" : "|{:=^48}|\n|{:^16}{:^16}{:^16}|\n"),
+                              "Protocols distribution", "protocol", "count", "perc");
+        std::cout << fmt::format((fileFormat == "csv" ? "{},{},{:.3}\n" : "|{:^16}{:<16}{:<16.3}|\n"), "UDP",
+                              stats.udpStats.numOfPackets,
+                              getPerc(stats.udpStats.numOfPackets, stats.udpStats.numOfPackets + stats.tcpStats.numOfPackets));
+        std::cout << fmt::format((fileFormat == "csv" ? "{},{},{:.3}\n" : "|{:^16}{:<16}{:<16.3}|\n"), "TCP",
+                              stats.tcpStats.numOfPackets,
+                              getPerc(stats.tcpStats.numOfPackets, stats.udpStats.numOfPackets + stats.tcpStats.numOfPackets));
+
     }
 
     StatsCollector statsCollector;
