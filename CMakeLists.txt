@@ -61,6 +61,5 @@ target_link_libraries(${PROJECT_NAME}
         )
 
 install(TARGETS ${PROJECT_NAME} DESTINATION sft/bin)
-install(FILES ${PROJECT_SOURCE_DIR}/examples/test.pcapng DESTINATION sft/examples)
 install (FILES ${PROJECT_SOURCE_DIR}/StatsCollector.h
         DESTINATION sft/include)
